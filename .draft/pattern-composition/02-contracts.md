@@ -149,6 +149,16 @@ Phase를 독립적으로 교체할 수 있게 만듭니다. Agent Card만 교체
     "replanCount": 1,
     "maxReplans": 3
   },
+  "blackboard": {
+    "review": {
+      "reads": ["artifacts/spec.md"],
+      "writes": ["artifacts/review-1.md"]
+    },
+    "verify": {
+      "reads": ["artifacts/spec.md", "artifacts/review-1.md"],
+      "writes": ["artifacts/verify-1.md"]
+    }
+  },
   "history": []
 }
 ```
@@ -156,6 +166,8 @@ Phase를 독립적으로 교체할 수 있게 만듭니다. Agent Card만 교체
 ### 설계 근거
 
 모든 상태를 파일 시스템에 JSON으로 외부화합니다. LLM 컨텍스트에 의존하지 않으므로 Provider 교체, 세션 재개, 감사 추적이 가능합니다. 원자적 쓰기(tmp → rename)는 부분 쓰기/찢어진 파일을 방지하는 수준이며, writer 간 직렬화가 필요하면 별도 파일락(`fcntl.flock`, `filelock` 등)을 병행해야 합니다.
+
+Form B(Blackboard Threading)를 쓰는 step은 `blackboard[phase].reads`와 `blackboard[phase].writes`에 실제 path를 남겨야 합니다. 그래야 재시도/재개 시 caller가 어느 산출물을 재사용하거나 다시 생성해야 하는지 State Schema만 보고 복구할 수 있습니다.
 
 ### 이 계약이 없으면 발생하는 실패
 
@@ -180,7 +192,7 @@ Phase를 독립적으로 교체할 수 있게 만듭니다. Agent Card만 교체
 ```jsonc
 {
   "gate": "analysis",                     // inspect|analysis|workflow-init|workflow-run|operations
-  "decision": "allow",                    // allow|dry_run_only|block
+  "decision": "block",                    // allow|dry_run_only|block
   "automation_level": "L2_analysis",
   "reasons": [
     {
@@ -257,6 +269,7 @@ for step in steps:
 ```
 
 - prior 결과는 in-memory `list[ResultEnvelope]` (즉 Result Envelope 계약과 직결).
+- chain이 길어질 수 있으면 caller는 `prior_results` 전체를 무제한 전달하지 않고, step spec에 필요한 최근 window 또는 요약된 metadata만 전달해야 합니다. 전체 envelope history가 필요하면 State Schema나 artifact store에 보존하고 prompt context에는 필요한 subset만 넣습니다.
 - factory는 부수효과 없는 pure builder. 외부 store 쓰기/읽기 없음.
 - 같은 role이 여러 step에 등장하면 동일 worker를 재사용해 단말 컨텍스트가 누적되도록 구현 가능.
 

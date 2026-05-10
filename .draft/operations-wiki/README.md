@@ -130,6 +130,7 @@ metric_method: deterministic_v1
 - topic registry가 어떤 event type을 어떤 page로 컴파일하는지 선언합니다.
 - `metric_method`를 기록해 aggregator 의미가 바뀌었을 때 silent overwrite를 막습니다.
 - confidence 산정 규칙을 문서화합니다.
+- timestamp/date 필드는 ISO8601 형식으로 표준화해 compiler와 agent query가 같은 값으로 파싱하게 합니다.
 
 ### Index/Log Contract
 
@@ -231,7 +232,7 @@ PR #37~#39는 Operations Wiki를 단순한 compile artifact가 아니라 repo au
 
 두 번째 단계는 `awf ready --gate`입니다. gate는 `inspect`, `analysis`, `workflow-init`, `workflow-run`, `operations` 같은 intent별로 `allow`, `dry_run_only`, `block` 결정을 JSON에 담고, `allow`가 아니면 non-zero exit로 Claude/Codex entrypoint를 멈춥니다. 자연어 지침에 "먼저 확인하세요"라고 쓰는 대신, host runner와 skill이 같은 결정론적 contract를 호출합니다.
 
-세 번째 단계는 command-internal enforcement입니다. `awf wiki decision`, `awf wiki regenerate-index`, non-dry-run `awf wiki compile`은 기본적으로 operations gate를 내부에서 다시 확인합니다. 반대로 `wiki init`, `log`, `events`, `lint`, `compile --dry-run` 같은 조회/검사 경로는 막지 않습니다. `--no-ready-gate`는 상위 wrapper가 같은 gate를 이미 수행했을 때만 쓰는 명시적 escape hatch입니다.
+세 번째 단계는 command-internal enforcement입니다. `awf wiki decision`, `awf wiki regenerate-index`, non-dry-run `awf wiki compile`은 기본적으로 operations gate를 내부에서 다시 확인합니다. 반대로 `wiki init`, `log`, `events`, `lint`, `compile --dry-run` 같은 조회/검사 경로는 막지 않습니다. 여기서 `wiki init`은 운영 기록을 추가하거나 compiled decision page를 갱신하지 않고, gate 판정에 필요한 로컬 wiki scaffold를 만드는 bootstrap 경로라 예외로 둡니다. `--no-ready-gate`는 상위 wrapper가 같은 gate를 이미 수행했을 때만 쓰는 명시적 escape hatch입니다.
 
 이 후속 확장은 Operations Wiki 패턴의 중요한 경계를 보여줍니다. wiki write는 지식 축적 surface이므로, "에이전트가 읽는 memory"를 갱신하기 전에 repo가 operations write를 받아도 되는지 결정론적으로 판정해야 합니다. 첫 사용자의 5분 경험도 같은 원칙을 따릅니다. 설명서를 읽게 하기보다 read-only readiness report와 machine-enforced gate가 다음 행동을 결정합니다.
 
